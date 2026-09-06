@@ -479,6 +479,7 @@ button:disabled,
 }
 
 .drop-card,
+.session-card,
 .qr-card,
 .receive-card,
 .step-grid article,
@@ -492,9 +493,120 @@ button:disabled,
 }
 
 .drop-card,
+.session-card,
 .qr-card,
 .receive-card {
   padding: 24px;
+}
+
+.share-grid:has(> .session-card:only-child) {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
+}
+
+.session-top {
+  align-items: center;
+  border-bottom: 1px solid #d8d7c8;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: -4px 0 22px;
+  padding-bottom: 14px;
+}
+
+.session-top strong,
+.status-pill {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.session-top strong {
+  color: #3f6250;
+  font-size: 1rem;
+}
+
+.status-pill {
+  background: #edf1e8;
+  border: 1px solid rgba(85, 122, 98, 0.18);
+  border-radius: 999px;
+  color: #557a62;
+  font-size: 0.9rem;
+  font-weight: 900;
+  padding: 8px 12px;
+}
+
+.status-pill i {
+  background: #557a62;
+  border-radius: 999px;
+  height: 9px;
+  width: 9px;
+}
+
+.status-pill.connected i {
+  animation: dotPulse 1400ms ease-in-out infinite;
+}
+
+.status-pill.expired,
+.status-pill.failed {
+  background: rgba(185, 121, 91, 0.12);
+  color: #b9795b;
+}
+
+.status-pill.expired i,
+.status-pill.failed i {
+  background: #b9795b;
+}
+
+.status-card,
+.expired-card,
+.active-transfer,
+.incoming-panel {
+  background: rgba(255, 249, 236, 0.72);
+  border: 1px dashed #d8d7c8;
+  border-radius: 22px 26px 20px 24px;
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+}
+
+.status-card h2,
+.expired-card h2 {
+  color: #35433b;
+  font-family: Lora, Georgia, serif;
+  font-size: clamp(1.75rem, 3vw, 2.18rem);
+  line-height: 1.14;
+  margin: 0;
+}
+
+.status-card p,
+.expired-card p,
+.incoming-panel span,
+.active-transfer span {
+  color: #68756d;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.active-transfer {
+  margin-top: 16px;
+}
+
+.transfer-label {
+  color: #b9795b !important;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.active-transfer > strong,
+.incoming-panel > strong {
+  color: #35433b;
+  font-size: 1.08rem;
+}
+
+.incoming-panel {
+  margin-top: 16px;
 }
 
 .card-head {
@@ -823,6 +935,13 @@ button:disabled,
 .success-state div {
   display: grid;
   gap: 3px;
+}
+
+.success-state .success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .success-state span {
