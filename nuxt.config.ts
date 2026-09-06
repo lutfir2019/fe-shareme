@@ -19,7 +19,7 @@ export default defineNuxtConfig({
   routeRules: {
     '/**': {
       headers: {
-        'content-security-policy': `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: ${apiBase}; connect-src ${connectSrc}; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';`,
+        'content-security-policy': `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: ${apiBase}; connect-src ${connectSrc}; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:;`,
         'x-content-type-options': 'nosniff',
         'referrer-policy': 'no-referrer',
         'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
