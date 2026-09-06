@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sky" x1="12" x2="52" y1="8" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DCEAF2"/>
+      <stop offset="1" stop-color="#FFF9EC"/>
+    </linearGradient>
+    <linearGradient id="meadow" x1="8" x2="56" y1="40" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#557A62"/>
+      <stop offset="1" stop-color="#88AEC2"/>
+    </linearGradient>
+    <clipPath id="sceneClip">
+      <rect x="5" y="5" width="54" height="54" rx="17"/>
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="#F7F1E3"/>
+  <rect x="5" y="5" width="54" height="54" rx="17" fill="url(#sky)"/>
+  <g clip-path="url(#sceneClip)">
+    <path d="M5 48c10-9 24-10 37-4 7 3 12 3 17 1v14H5z" fill="url(#meadow)" opacity=".72"/>
+    <circle cx="48" cy="17" r="6" fill="#E8C97A"/>
+    <path d="M17 26c8-7 18-7 29 0" fill="none" stroke="#7296A8" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 6"/>
+    <rect x="17" y="18" width="25" height="25" rx="7" fill="#FFFDF5" stroke="#557A62" stroke-width="3"/>
+    <path d="M23 25h5v5h-5zm13 0h-5v5h5zM23 34h5v5h-5zm9-2h4v4h-4zm4 4h4v4h-4z" fill="#35433B"/>
+    <path d="M43 36l11-8-4 15-4-6-7-1z" fill="#FFF9EC" stroke="#B9795B" stroke-linejoin="round" stroke-width="2.6"/>
+    <path d="M17 13c6-2 11 0 14 5-6 2-11 0-14-5z" fill="#557A62"/>
+    <path d="M18 13c2 3 5 4 10 4" fill="none" stroke="#FFFDF5" stroke-linecap="round" stroke-width="1.8"/>
+  </g>
+  <rect x="5" y="5" width="54" height="54" rx="17" fill="none" stroke="#D8D7C8" stroke-width="2"/>
+</svg>
