@@ -28,7 +28,7 @@ const rtcConfig: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.l.google.c
 
 type Role = 'sender' | 'receiver';
 type LogTarget = 'local' | 'remote';
-type ConnectionStatus = 'idle' | 'waiting' | 'connecting' | 'connected' | 'expired' | 'failed';
+type ConnectionStatus = 'idle' | 'waiting' | 'connecting' | 'connected' | 'disconnected' | 'expired' | 'failed';
 type TransferStatus = 'preparing' | 'transferring' | 'completed' | 'failed';
 
 interface CreateSessionResponse {
@@ -63,7 +63,7 @@ interface FileMetaMessage {
 }
 
 interface ChannelMessage {
-  type: 'file-ready' | 'file-reject' | 'file-complete' | 'file-abort' | 'file-error' | 'ping' | 'pong';
+  type: 'file-ready' | 'file-reject' | 'file-complete' | 'file-abort' | 'file-error' | 'peer-disconnected' | 'ping' | 'pong';
   transferId?: string;
   error?: string;
 }
@@ -155,12 +155,14 @@ const statusCopy = computed(() => {
   if (connectionStatus.value === 'connected') return 'Connected';
   if (connectionStatus.value === 'connecting') return 'Connecting';
   if (connectionStatus.value === 'waiting') return 'Waiting for another device';
+  if (connectionStatus.value === 'disconnected') return 'Disconnected';
   if (connectionStatus.value === 'expired') return 'Session expired';
   if (connectionStatus.value === 'failed') return 'Connection failed';
   return 'Create a little gateway';
 });
 const isTransferLocked = computed(() => Boolean(activeTransfer.value && activeTransfer.value.status !== 'completed' && activeTransfer.value.status !== 'failed'));
 const canSend = computed(() => Boolean(currentFile.value && channel.value?.readyState === 'open' && connectionStatus.value === 'connected' && !isTransferLocked.value));
+const canDisconnect = computed(() => connectionStatus.value === 'connected' && !isTransferLocked.value);
 
 function log(_target: LogTarget, text: string) {
   logs.value = [text, ...logs.value].slice(0, 5);
@@ -243,6 +245,7 @@ function setupPeer(nextRole: Role) {
   socket.value!.onmessage = async ({ data }) => {
     const message = JSON.parse(data) as SignalMessage;
     if (message.type === 'session-expired') return expireClientSession();
+    if (message.type === 'peer-disconnected') return disconnectSession(false);
     if (message.type === 'peer-ready') {
       connectionStatus.value = 'connecting';
       if (nextRole === 'sender') await createOffer();
@@ -270,7 +273,7 @@ function bindDataChannel(nextChannel: RTCDataChannel) {
     void handleChannelMessage(event.data);
   };
   nextChannel.onclose = () => {
-    if (connectionStatus.value !== 'expired') connectionStatus.value = 'failed';
+    if (!['expired', 'disconnected'].includes(connectionStatus.value)) connectionStatus.value = 'failed';
   };
 }
 
@@ -323,7 +326,7 @@ function openSignaling(nextRole: Role) {
   socket.value = new WebSocket(socketUrl(nextRole));
   socket.value.onopen = () => setupPeer(nextRole);
   socket.value.onclose = () => {
-    if (connectionStatus.value !== 'expired' && connectionStatus.value !== 'connected') connectionStatus.value = 'failed';
+    if (!['connected', 'expired', 'disconnected'].includes(connectionStatus.value)) connectionStatus.value = 'failed';
   };
 }
 
@@ -385,6 +388,7 @@ async function sendSelectedFile() {
     status: 'preparing',
   };
 
+  socket.value?.send(JSON.stringify({ type: 'transfer-start' }));
   dataChannel.send(JSON.stringify({
     type: 'file-meta',
     transferId,
@@ -403,7 +407,6 @@ async function streamCurrentFile() {
 
   let sent = 0;
   transfer.status = 'transferring';
-  socket.value?.send(JSON.stringify({ type: 'transfer-start' }));
 
   for (let offset = 0; offset < selected.size; offset += CHUNK_SIZE) {
     if (sendAbort || connectionStatus.value === 'expired') break;
@@ -438,6 +441,10 @@ async function handleChannelMessage(data: string | ArrayBuffer) {
     await failIncomingTransfer('Malformed transfer message.');
     return;
   }
+  if (message.type === 'peer-disconnected') {
+    if (!isTransferLocked.value) await disconnectSession(false);
+    return;
+  }
   if (message.type === 'file-meta') {
     const incoming = validateIncomingMeta(message);
     if (!incoming || isTransferLocked.value) {
@@ -465,6 +472,7 @@ async function handleChannelMessage(data: string | ArrayBuffer) {
   }
   if (message.type === 'file-reject') {
     if (activeTransfer.value) activeTransfer.value.status = 'failed';
+    socket.value?.send(JSON.stringify({ type: 'transfer-failed' }));
     log('remote', message.error || 'Transfer rejected.');
   }
   if (message.type === 'file-complete' && activeTransfer.value?.direction === 'receive') {
@@ -472,6 +480,7 @@ async function handleChannelMessage(data: string | ArrayBuffer) {
   }
   if (message.type === 'file-abort' || message.type === 'file-error') {
     if (activeTransfer.value) activeTransfer.value.status = 'failed';
+    socket.value?.send(JSON.stringify({ type: 'transfer-failed' }));
     incomingChunks = [];
     await closeWriter(true);
   }
@@ -627,6 +636,40 @@ async function expireClientSession() {
   timer.value = '00:00';
 }
 
+async function disconnectSession(notifyPeer = true) {
+  if (!canDisconnect.value && notifyPeer) {
+    log('local', 'Finish the current file transfer before disconnecting.');
+    return;
+  }
+
+  if (notifyPeer && channel.value?.readyState === 'open') {
+    channel.value.send(JSON.stringify({ type: 'peer-disconnected' }));
+  }
+  if (notifyPeer && socket.value?.readyState === WebSocket.OPEN) {
+    socket.value.send(JSON.stringify({ type: 'peer-disconnected' }));
+  }
+
+  connectionStatus.value = 'disconnected';
+  sendAbort = true;
+  await closeWriter(true);
+  channel.value?.close();
+  pc.value?.close();
+  socket.value?.close();
+  currentFile.value = null;
+  pendingIncoming.value = null;
+  clearDownloadUrl();
+  incomingChunks = [];
+  incomingBytes.value = 0;
+  activeTransfer.value = null;
+  pairingToken.value = '';
+  pairingUrl.value = '';
+  signalingToken.value = '';
+  sessionId.value = null;
+  if (timerInterval) clearInterval(timerInterval);
+  timer.value = '00:00';
+  log('local', notifyPeer ? 'Connection disconnected.' : 'Peer disconnected.');
+}
+
 function resetSession() {
   void expireClientSession();
   connectionStatus.value = 'idle';
@@ -714,6 +757,14 @@ onBeforeUnmount(() => {
           <button v-if="!isReceiver" class="primary" type="button" @click="resetSession"><RefreshCw :size="18" /> Create new session</button>
         </div>
 
+        <div v-else-if="connectionStatus === 'disconnected'" class="expired-card">
+          <ServerOff :size="36" />
+          <h2>Connection disconnected.</h2>
+          <p>The peer connection was closed after active transfer work finished.</p>
+          <button v-if="!isReceiver" class="primary" type="button" @click="resetSession"><RefreshCw :size="18" /> Create new session</button>
+          <a v-else class="button primary" href="/"><RefreshCw :size="18" /> Start over</a>
+        </div>
+
         <template v-else>
           <label class="drop-zone" for="fileInput">
             <input id="fileInput" type="file" :disabled="connectionStatus !== 'connected' || isTransferLocked" @change="onFileChange">
@@ -762,6 +813,7 @@ onBeforeUnmount(() => {
           <div class="actions">
             <button class="primary" type="button" :disabled="!canSend" @click="sendSelectedFile"><Send :size="18" /> Send file</button>
             <button v-if="!isReceiver" class="secondary" type="button" :disabled="!pairingUrl || connectionStatus === 'connected'" @click="copyLink"><Link :size="18" /> Copy pairing link</button>
+            <button class="secondary" type="button" :disabled="!canDisconnect" @click="disconnectSession()"><ServerOff :size="18" /> Disconnect</button>
           </div>
 
           <div class="transfer-strip" :class="{ moving: connectionStatus === 'connected' || activeTransfer?.status === 'transferring' }">

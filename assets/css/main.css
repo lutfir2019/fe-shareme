@@ -548,13 +548,15 @@ button:disabled,
 }
 
 .status-pill.expired,
-.status-pill.failed {
+.status-pill.failed,
+.status-pill.disconnected {
   background: rgba(185, 121, 91, 0.12);
   color: #b9795b;
 }
 
 .status-pill.expired i,
-.status-pill.failed i {
+.status-pill.failed i,
+.status-pill.disconnected i {
   background: #b9795b;
 }
 
